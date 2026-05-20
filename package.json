@@ -1,0 +1,22 @@
+{
+  "name": "laboratoire-physique-ia",
+  "version": "1.0.0",
+  "description": "Analyse d'objets en physique avec l'API Gemini 2.5 masquée par un proxy Node.js",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "gemini",
+    "express",
+    "physics",
+    "render"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
+  }
+}
