@@ -7,7 +7,7 @@ app = Flask(__name__, template_folder='.')
 @app.route('/')
 def home():
     # Rendu du fichier HTML situé à la racine
-    return render_template('projet.html')
+    return render_template('index.html')
 
 if __name__ == '__main__':
     # Railway attribue dynamiquement un port via la variable d'environnement PORT
