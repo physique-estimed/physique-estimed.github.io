@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laboratoire de Physique IA</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --primary: #38bdf8;
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --success: #4ade80;
+            --warning: #facc15;
+            --error: #ef4444;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+        
+        body { 
+            background-color: var(--bg-color); 
+            color: var(--text-main); 
+            min-height: 100vh; 
+            padding: 10px; 
+            display: flex; justify-content: center; align-items: center; 
+        }
+
+        .card { 
+            background-color: var(--card-bg); 
+            padding: 25px; 
+            border-radius: 20px; 
+            width: 100%; 
+            max-width: 600px; 
+            box-shadow: 0 15px 35px rgba(0,0,0,0.4); 
+            border: 1px solid #334155;
+            display: none; 
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        h1 { text-align: center; margin-bottom: 20px; color: var(--primary); font-size: 1.5rem; font-weight: 800;}
+        
+        .video-container { 
+            position: relative; width: 100%; height: 280px; 
+            background: #000; border-radius: 12px; overflow: hidden; 
+            margin-bottom: 20px; border: 2px solid #334155;
+        }
+        
+        video { width: 100%; height: 100%; object-fit: cover; }
+        #capture-canvas { display: none; }
+
+        .data-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .data-box {
+            background: rgba(0,0,0,0.2);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #334155;
+        }
+
+        .data-title { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px;}
+        .data-value { font-size: 1.2rem; font-weight: bold; color: var(--text-main);}
+        .data-value.highlight { color: var(--success); }
+        .data-value.calc { color: var(--warning); }
+
+        button { 
+            width: 100%; padding: 16px; background: var(--primary); 
+            color: #0f172a; border: none; border-radius: 10px; 
+            font-size: 1.1rem; font-weight: 800; cursor: pointer; 
+            transition: all 0.2s ease; text-transform: uppercase;
+        }
+        
+        button:hover:not(:disabled) { background: #7dd3fc; transform: translateY(-2px); }
+        button:disabled { background: #475569; color: #94a3b8; cursor: not-allowed; transform: none;}
+
+        .auth-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.95); display: flex; justify-content: center; align-items: center;
+            z-index: 1000; padding: 20px;
+        }
+
+        .auth-modal {
+            background: var(--card-bg); padding: 30px; border-radius: 20px;
+            max-width: 450px; width: 100%; text-align: center; border: 1px solid #334155;
+        }
+        .auth-modal h2 { color: var(--primary); margin-bottom: 15px; }
+        .auth-modal p { color: var(--text-muted); margin-bottom: 25px; line-height: 1.5;}
+        
+        /* Spinner de chargement automatique */
+        .spinner {
+            border: 4px solid rgba(255,255,255,0.1); border-radius: 50%;
+            border-top: 4px solid var(--primary); width: 40px; height: 40px;
+            animation: spin 1s linear infinite; margin: 0 auto 20px auto;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<div id="authOverlay" class="auth-overlay">
+    <div class="auth-modal">
+        <div class="spinner" id="autoSpinner"></div>
+        <h2 id="authTitle">Initialisation des capteurs...</h2>
+        <p id="authMsg">Veuillez accepter les demandes d'autorisation de votre navigateur (Caméra & GPS) pour démarrer l'application.</p>
+        
+        <button id="authBtn" onclick="demanderAutorisations()" style="display: none;">Forcer l'autorisation manuellement</button>
+    </div>
+</div>
+
+<div id="appCard" class="card">
+    <h1>Laboratoire Physique (Gemini 2.5)</h1>
+    
+    <div class="video-container">
+        <video id="webcam" autoplay playsinline muted></video>
+        <canvas id="capture-canvas"></canvas>
+    </div>
+
+    <div class="data-grid">
+        <div class="data-box">
+            <div class="data-title">Gravité locale (g)</div>
+            <div id="g-val" class="data-value">En attente...</div>
+        </div>
+        <div class="data-box">
+            <div class="data-title">Objet détecté</div>
+            <div id="object-detected" class="data-value highlight">-</div>
+        </div>
+        <div class="data-box">
+            <div class="data-title">Masse (m)</div>
+            <div id="mass-estimated" class="data-value highlight">0 kg</div>
+        </div>
+        <div class="data-box">
+            <div class="data-title">Volume (V)</div>
+            <div id="volume-estimated" class="data-value highlight">0 L</div>
+        </div>
+        <div class="data-box" style="grid-column: span 2;">
+            <div class="data-title">Force de Pesanteur / Poids (P = m * g)</div>
+            <div id="final-force" class="data-value calc" style="font-size: 1.8rem; text-align: center;">0.00 N</div>
+        </div>
+        <div class="data-box">
+            <div class="data-title">Masse volumique (&rho; = m/V)</div>
+            <div id="density-val" class="data-value calc">0 kg/m³</div>
+        </div>
+        <div class="data-box">
+            <div class="data-title">Énergie Potentielle (à h = 1m)</div>
+            <div id="energy-val" class="data-value calc">0 J</div>
+        </div>
+    </div>
+
+    <button id="snap-btn" onclick="lancerAnalyse()">Analyser l'objet en direct</button>
+</div>
+
+<script>
+    const GEMINI_API_KEY = "AIzaSyC-pzZw1ZMnF1F2yeHC9qZXleVyc2jir9A"; 
+    
+    const video = document.getElementById('webcam');
+    const canvas = document.getElementById('capture-canvas');
+    const btn = document.getElementById('snap-btn');
+    
+    let gravity = 9.80665; 
+
+    // Lancement automatique au démarrage de la page
+    window.addEventListener('DOMContentLoaded', () => {
+        demanderAutorisations();
+    });
+
+    async function demanderAutorisations() {
+        const authBtn = document.getElementById('authBtn');
+        const authTitle = document.getElementById('authTitle');
+        const autoSpinner = document.getElementById('autoSpinner');
+
+        authBtn.style.display = "none";
+        autoSpinner.style.display = "block";
+        authTitle.innerText = "Demande en cours...";
+
+        let cameraAccordee = false;
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: 'environment' }, 
+                audio: false 
+            });
+            video.srcObject = stream;
+            cameraAccordee = true;
+        } catch (err) {
+            console.error(err);
+            // Si la caméra échoue (refus ou blocage navigateur), on affiche le bouton manuel
+            autoSpinner.style.display = "none";
+            authTitle.innerText = "Action requise";
+            document.getElementById('authMsg').innerText = "Le navigateur a bloqué la demande automatique ou vous avez refusé. Veuillez réessayer.";
+            authBtn.style.display = "block";
+            authBtn.innerText = "Réessayer";
+        }
+
+        if ("geolocation" in navigator) {
+            await new Promise((resolve) => {
+                navigator.geolocation.getCurrentPosition((position) => {
+                    const lat = position.coords.latitude;
+                    gravity = 9.780327 * (1 + 0.0053024 * Math.pow(Math.sin(lat * Math.PI / 180), 2));
+                    document.getElementById('g-val').innerText = `${gravity.toFixed(3)} m/s²`;
+                    resolve();
+                }, () => {
+                    document.getElementById('g-val').innerText = "9.81 m/s² (Standard)";
+                    resolve();
+                }, { timeout: 4000 });
+            });
+        }
+
+        if (cameraAccordee) {
+            document.getElementById('authOverlay').style.display = 'none';
+            document.getElementById('appCard').style.display = 'block';
+        }
+    }
+
+    async function lancerAnalyse() {
+        btn.disabled = true;
+        btn.innerText = "Requête Gemini 2.5 en cours...";
+        
+        document.getElementById('object-detected').innerText = "Recherche...";
+
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const base64Image = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+        
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+
+        const promptExpert = `Agis comme un expert en physique et en métrologie. 
+        Analyse l'image fournie et identifie l'objet principal. 
+        1. Évalue ses dimensions probables par rapport à son environnement.
+        2. Déduis les matériaux qui le composent (plastique, métal, bois, etc.) et détermine s'il est creux ou plein.
+        3. Estime sa masse (en kilogrammes) et son volume (en litres) de la façon la plus précise et réaliste possible.
+        Ne renvoie AUCUN texte brut, respecte strictement le schéma JSON demandé.`;
+
+        const payload = {
+            contents: [{
+                parts: [
+                    { text: promptExpert },
+                    { inline_data: { mime_type: "image/jpeg", data: base64Image } }
+                ]
+            }],
+            generationConfig: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: "OBJECT",
+                    properties: {
+                        objet: { type: "STRING", description: "Nom court de l'objet" },
+                        masse_kg: { type: "NUMBER", description: "Masse estimée en kg" },
+                        volume_l: { type: "NUMBER", description: "Volume estimé en litres (L)" }
+                    },
+                    required: ["objet", "masse_kg", "volume_l"]
+                }
+            }
+        };
+
+        try {
+            const response = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            if(!response.ok) throw new Error("Erreur réseau API");
+
+            const data = await response.json();
+
+            if (data.candidates && data.candidates.length > 0) {
+                const resultIA = JSON.parse(data.candidates[0].content.parts[0].text);
+
+                const m = parseFloat(resultIA.masse_kg);
+                const v_litres = parseFloat(resultIA.volume_l);
+                const v_m3 = v_litres / 1000; 
+
+                document.getElementById('object-detected').innerText = resultIA.objet;
+                document.getElementById('mass-estimated').innerText = `${m.toFixed(3)} kg`;
+                document.getElementById('volume-estimated').innerText = `${v_litres.toFixed(2)} L`;
+
+                const force_N = m * gravity; 
+                const density = v_m3 > 0 ? (m / v_m3) : 0; 
+                const energy_J = m * gravity * 1; 
+
+                document.getElementById('final-force').innerText = `${force_N.toFixed(2)} N`;
+                document.getElementById('density-val').innerText = `${Math.round(density)} kg/m³`;
+                document.getElementById('energy-val').innerText = `${energy_J.toFixed(2)} J`;
+            }
+        } catch (err) {
+            console.error(err);
+            document.getElementById('object-detected').innerText = "Erreur d'analyse";
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "Analyser l'objet en direct";
+        }
+    }
+</script>
+
+</body>
+</html>
