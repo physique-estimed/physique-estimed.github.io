@@ -156,7 +156,6 @@
 </div>
 
 <script>
-    // Plus aucune clé API ici. Sécurité absolue pour GitHub !
     const video = document.getElementById('webcam');
     const canvas = document.getElementById('capture-canvas');
     const btn = document.getElementById('snap-btn');
@@ -225,7 +224,6 @@
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         const base64Image = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
         
-        // Appel de la route API locale gérée par server.js
         const url = "/api/analyse"; 
 
         const promptExpert = `Agis comme un expert en physique et en métrologie. 
@@ -268,7 +266,12 @@
             const data = await response.json();
 
             if (data.candidates && data.candidates.length > 0) {
-                const resultIA = JSON.parse(data.candidates[0].content.parts[0].text);
+                let rawText = data.candidates[0].content.parts[0].text;
+                
+                // Correction & Nettoyage des balises Markdown parasites
+                rawText = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
+
+                const resultIA = JSON.parse(rawText);
 
                 const m = parseFloat(resultIA.masse_kg);
                 const v_litres = parseFloat(resultIA.volume_l);
@@ -285,6 +288,8 @@
                 document.getElementById('final-force').innerText = `${force_N.toFixed(2)} N`;
                 document.getElementById('density-val').innerText = `${Math.round(density)} kg/m³`;
                 document.getElementById('energy-val').innerText = `${energy_J.toFixed(2)} J`;
+            } else {
+                document.getElementById('object-detected').innerText = "Aucun résultat";
             }
         } catch (err) {
             console.error(err);
