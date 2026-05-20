@@ -156,7 +156,7 @@
 </div>
 
 <script>
-    // Plus de clé API ici ! Sécurité totale pour GitHub.
+    // Plus aucune clé API ici. Sécurité absolue pour GitHub !
     const video = document.getElementById('webcam');
     const canvas = document.getElementById('capture-canvas');
     const btn = document.getElementById('snap-btn');
@@ -225,14 +225,14 @@
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         const base64Image = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
         
-        // On effectue la requête directement vers notre serveur local ou distant
+        // Appel de la route API locale gérée par server.js
         const url = "/api/analyse"; 
 
         const promptExpert = `Agis comme un expert en physique et en métrologie. 
         Analyse l'image fournie et identifie l'objet principal. 
         1. Évalue ses dimensions probables par rapport à son environnement.
         2. Déduis les matériaux qui le composent (plastique, métal, bois, etc.) et détermine s'il est creux ou plein.
-        3. Estime sa masse (en kilogrammes) et son volume (en litres) de la façon la plus précise et realistic possible.
+        3. Estime sa masse (en kilogrammes) et son volume (en litres) de la façon la plus précise et réaliste possible.
         Ne renvoie AUCUN texte brut, respecte strictement le schéma JSON demandé.`;
 
         const payload = {
